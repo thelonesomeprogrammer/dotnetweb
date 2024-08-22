@@ -1,0 +1,87 @@
+$navbar-bg: #333;
+$navbar-text-color: #fff;
+$navbar-hover-color: #ccc;
+$navbar-active-color: #ff6347;
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar {
+  background-color: $navbar-bg;
+  padding: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+
+  &-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    @include flex-center;
+    
+    .navbar-item {
+      margin-left: 2rem;
+
+      a {
+        color: $navbar-text-color;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 3px;
+
+        &:hover {
+          background-color: $navbar-hover-color;
+          color: $navbar-bg;
+        }
+
+        &.active {
+          background-color: $navbar-active-color;
+        }
+      }
+    }
+  }
+}
+
+
+.krydsbole{
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 90vh;
+
+  .krydsbole_outer{
+    display: grid;
+    background-color: black;
+    row-gap: 5px;
+    column-gap: 5px;
+    width: 90%;
+    height: 90%;
+    grid-template-columns: auto auto auto;
+
+    .krydsbole_outer_felt{
+      display:flex;
+      width: 100%;
+      height: 100%;
+      background-color: white;
+      justify-content: center;
+      align-items: center;
+
+      .krydsbole_inner{
+        display: grid;
+        background-color: black;
+        row-gap: 5px;
+        column-gap: 5px;
+        width: 90%;
+        height: 90%;
+        grid-template-columns: auto auto auto;
+
+        .krydsbole_inner_felt{
+          width: 100%;
+          height: 100%;
+          background-color: white;
+        }
+      }
+    }
+  }
+}
