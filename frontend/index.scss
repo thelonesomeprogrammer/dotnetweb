@@ -1,13 +1,4 @@
 $navbar-bg: #333;
-$navbar-text-color: #fff;
-$navbar-hover-color: #ccc;
-$navbar-active-color: #ff6347;
-
-@mixin flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 .navbar {
   background-color: $navbar-bg;
@@ -18,45 +9,168 @@ $navbar-active-color: #ff6347;
     list-style: none;
     margin: 0;
     padding: 0;
-    @include flex-center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     
     .navbar-item {
       margin-left: 2rem;
 
       a {
-        color: $navbar-text-color;
+        color: #fff;
         text-decoration: none;
         padding: 0.5rem 1rem;
         border-radius: 3px;
 
         &:hover {
-          background-color: $navbar-hover-color;
+          background-color: #ccc;
           color: $navbar-bg;
         }
 
         &.active {
-          background-color: $navbar-active-color;
+          background-color: #ff6347;
         }
       }
     }
   }
 }
 
+.game-con{
+  display:flex;
+  height: 90vh;
+  width: 100vw;
+  justify-content: center;
+}
 
-.krydsbole{
+@keyframes cross-right{
+  0% {
+    background-position-y:0%;
+    transform: rotate(0deg);
+  }
+
+  50% {
+    background-position-y:60%;
+    transform: rotate(0deg);
+  }
+
+
+  100% {
+    background-position-y:100%;
+    transform: rotate(-45deg);
+  }
+}
+
+@keyframes cross-left {
+
+  0% {
+    background-position-y:0%;
+    transform: rotate(0deg);
+  }
+
+  50% {
+    background-position-y:60%;
+    transform: rotate(0deg);
+  }
+
+
+  100% {
+    background-position-y:100%;
+    transform: rotate(45deg);
+  }
+
+}
+
+@keyframes o-win {
+  from {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black   0%, white 0);}
+  10%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  10%, white 0);}
+  20%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  20%, white 0);}
+  30%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  30%, white 0);}
+  40%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  40%, white 0);}
+  50%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  50%, white 0);}
+  60%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  60%, white 0);}
+  70%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  70%, white 0);}
+  80%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  80%, white 0);}
+  90%  {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black  90%, white 0);}
+  to   {background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black 100%, white 0);}
+}
+
+.f {
+  background-color:gray;
+}
+
+.line {
+    width:10%;
+    transform-origin:bottom;
+    background-size: 100% 300%;
+    background-image:linear-gradient(transparent 0% 49%, black 51% 100%);
+}
+.x{
+  display: flex; 
+  height:100%; 
+  width:100%; 
   display:flex;
   justify-content: center;
   align-items: center;
-  width: 100vw;
-  height: 90vh;
+  overflow:hidden;
+  > .line{
+    position:relative;
+    bottom: 18%;
+    background-position:bottom;
+    height:130%; 
+  }
+  > .line-l{
+    animation:cross-left 3s;
+    transform: rotate(45deg);
+  }
+  > .line-r{
+    animation:cross-right 3s;
+    transform: rotate(-45deg);
+  }
+}
+
+.n{
+  height: 100%;
+  width:100%; 
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  >.line{
+    background-position:top;
+  }
+}
+
+
+.o{
+  height: 100%;
+  width:100%; 
+  background: radial-gradient(closest-side, white 69%, transparent 70% 89%, white 90% 100%), conic-gradient(black 100%, white 0);
+  animation: o-win 3s;
+  overflow:hidden;
+  > .line{
+    height:100%;
+    opacity:0;
+  }
+}
+.game-con {
+  display:flex;
+  height: min(90vh,100vw);
+  justify-content: center;
+  align-items: center;
+}
+.krydsbole{
+  aspect-ratio: 1.2;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  height: 90%;
 
   .krydsbole_outer{
     display: grid;
     background-color: black;
     row-gap: 5px;
     column-gap: 5px;
-    width: 90%;
-    height: 90%;
+    width: 100%;
+    height: 100%;
     grid-template-columns: repeat(3, minmax(0, 1fr));
 
     .krydsbole_outer_felt{
@@ -69,14 +183,16 @@ $navbar-active-color: #ff6347;
 
       .krydsbole_inner{
         display: grid;
+        aspect-ratio: 1;
         background-color: black;
         row-gap: 5px;
         column-gap: 5px;
         width: 90%;
         height: 90%;
-        grid-template-columns: auto auto auto;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
 
         .krydsbole_inner_felt{
+          aspect-ratio: 1;
           width: 100%;
           height: 100%;
           background-color: white;

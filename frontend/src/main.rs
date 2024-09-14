@@ -1,17 +1,30 @@
 use yew_router::prelude::*;
 use yew::prelude::*;
 mod pages;
+mod comp;
+mod model;
+mod func;
 use pages::home::Home;
-use pages::kryds::Krydsbole;
-
+use pages::auth::{login::Login, register::Register};
+use pages::kryds::{Menu, local::Krydsbole as Local, online::Krydsbole as Online,bot::Krydsbole as Bot};
 
 
 #[derive(Clone, Routable, PartialEq)]
-enum Route {
+pub enum Route {
     #[at("/")]
     Home,
+    #[at("/login")]
+    Login,
+    #[at("/register")]
+    Register,
     #[at("/krydsbole")]
     Krydsbole,
+    #[at("/krydsbole/local")]
+    Local,
+    #[at("/krydsbole/online")]
+    Online,
+    #[at("/krydsbole/bot")]
+    Bot,
     #[not_found]
     #[at("/404")]
     NotFound,
@@ -26,7 +39,12 @@ fn main() {
 fn switch(routes: Route) -> Html {
     match routes {
         Route::Home => html! { <Home /> },
-        Route::Krydsbole => html! { <Krydsbole /> },
+        Route::Register=> html! { <Login /> },
+        Route::Login => html! { <Register /> },
+        Route::Krydsbole => html! { <Menu /> },
+        Route::Local => html! { <Local /> },
+        Route::Online => html! { <Online /> },
+        Route::Bot=> html! { <Bot /> },
         Route::NotFound => html! { <h1>{ "404" }</h1> },
     }
 }
@@ -34,12 +52,10 @@ fn switch(routes: Route) -> Html {
 #[function_component(App)]
 fn app() -> Html {
     html! {
-        <>
-            <Nav />
             <BrowserRouter>
+                <Nav />
                 <Switch<Route> render={switch} />
             </BrowserRouter>
-        </>
     }
 }
 
@@ -48,9 +64,8 @@ fn nav() -> Html {
     return html! {
         <nav class={classes!("navbar")}>
             <ul class={classes!("navbar-menu")}>
-                <li class={classes!("navbar-item")}><a href="/">{"Hjem"}</a></li>
-                <li class={classes!("navbar-item")}><a href="/krydsbole">{"super kryds og bole"}</a></li>
-                <li class={classes!("navbar-item")}><a href="/about">{"om"}</a></li>
+                <li class={classes!("navbar-item")}><Link<Route> to={Route::Home}>{ "Hjem" }</Link<Route>></li>
+                <li class={classes!("navbar-item")}><Link<Route> to={Route::Krydsbole}>{ "super kryds og bole" }</Link<Route>></li>
             </ul>
         </nav>
     };
