@@ -1,8 +1,35 @@
-use yew::{function_component, html, Html};
+use serde::Serialize;
+use yew::{function_component, html, Html,Callback};
+use wasm_bindgen::UnwrapThrowExt;
 use crate::comp::modal::Modal;
+use gloo::net::http::Request;
+use web_sys::{window,HtmlInputElement};
+use wasm_bindgen::JsCast;
+
+#[derive(Serialize)]
+struct Regi{
+    password:String,
+    email:String,
+}
+
+
 
 #[function_component( Login )]
 pub fn main() -> Html {
+
+    let onclick = {Callback::from(move |_| {
+        let form = window().unwrap_throw().document().unwrap_throw();
+        let email = form.get_element_by_id("email").unwrap_throw().dyn_into::<HtmlInputElement>().unwrap_throw().value();
+        let password = form.get_element_by_id("password").unwrap_throw().dyn_into::<HtmlInputElement>().unwrap_throw().value();
+        wasm_bindgen_futures::spawn_local(async move {
+                    Request::post("/login")
+                        .json(&Regi{password,email})
+                        .unwrap_throw()
+                        .send()
+                        .await
+                        .unwrap();
+                });
+    })};
 
     let form_style = "text-align: center;";
     let label_style = "font-weight: bold; display: block; margin-bottom: 5px;";
@@ -12,12 +39,12 @@ pub fn main() -> Html {
 
     return html! {
         <Modal>
-            <form style = {form_style} method="post" action="/login">
+            <form style = {form_style}>
                 <label style = {label_style} for="email"> {"email:"} </label> <br />
                 <input style = {input_text_style} type="email" id="email" name="email" placeholder="code" value="" /> <br />
                 <label style = {label_style} for="password"> {"password:"} </label> <br />
                 <input style = {input_text_style} type="text" id="password" name="password" placeholder="code" value="" /> <br />
-                <input style = {input_submit_style} type="submit" value="Submit" />
+                <button style = {input_submit_style} {onclick}> {"Submit"} </button>
             </form>
         </Modal>
     };

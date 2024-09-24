@@ -19,7 +19,7 @@ pub fn quadrant(props: &QuadrantProps) -> Html {
     let boardid = props.boardid;
     let gamestate = props.gamestate.clone();
     let oponent = props.oponent.clone();
-    let active = gamestate.activeboard == boardid || {gamestate.activeboard < 15 && gamestate.activeboard > 8};
+    let active = gamestate.activeboard == boardid || {gamestate.activeboard < 11 && gamestate.activeboard > 8};
     let mut class:[&str;2] = ["e","e"];
 
 

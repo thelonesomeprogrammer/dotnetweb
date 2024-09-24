@@ -7,8 +7,10 @@ use yew_router::components::Link;
 use crate::Route;
 use crate::comp::modal::Modal;
 use crate::model::{Model,B};
-use gloo::net::websocket::futures::WebSocket;
-use std::sync::{Arc,Mutex};
+use gloo::net::websocket::{Message,futures::WebSocket};
+use futures::stream::{SplitSink,SplitStream};
+use std::sync::Arc;
+use futures::lock::Mutex;
 
 #[derive(PartialEq,Clone,Serialize,Deserialize)]
 pub struct GameState {
@@ -16,10 +18,12 @@ pub struct GameState {
     pub activeboard:usize,
     pub turn:bool,
 }
+impl GameState {pub fn new() -> Self{Self{mainboard:[[0;9];10],activeboard:10,turn:true}}}
 
 #[derive(Clone)]
 pub struct Remote {
-    sock:Arc<Mutex<WebSocket>>,
+    pub stream:Arc<Mutex<SplitStream<WebSocket>>>,
+    pub sink:Arc<Mutex<SplitSink<WebSocket,Message>>>,
 }
 
 impl PartialEq for Remote{

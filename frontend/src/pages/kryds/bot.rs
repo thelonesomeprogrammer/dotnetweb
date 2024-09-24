@@ -12,7 +12,7 @@ static STATE: &[u8] = include_bytes!("../../../model.bin");
 
 #[function_component(Krydsbole)]
 pub fn krydsbole() -> Html {
-    let gamestate:UseStateHandle<GameState> = use_state(|| GameState{mainboard:[[0;9];10],activeboard:10,turn:true});
+    let gamestate = use_state(|| GameState::new());
     let device:Device<B> = Default::default();
     let record = BinBytesRecorder::<FullPrecisionSettings>::default()
         .load(STATE.to_vec(), &device)

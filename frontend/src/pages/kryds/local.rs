@@ -9,7 +9,7 @@ use crate::{
 
 #[function_component(Krydsbole)]
 pub fn krydsbole() -> Html {
-    let gamestate = use_state(|| GameState{mainboard:[[0;9];10],activeboard:11,turn:true});
+    let gamestate = use_state(|| GameState::new());
     let oponent = use_state(|| Oponent::Local);
     let class = match check_win(gamestate.mainboard[9]){
         0 => "n",

@@ -6,7 +6,11 @@ use crate::model::Model;
 use crate::pages::kryds::{GameState,Remote};
 
 impl Remote {
-    pub fn play(&mut self, gamestate:GameState) -> GameState {gamestate}
+    pub fn play(&mut self, gamestate:GameState) -> GameState {
+        let mut gamestate = gamestate.clone();
+        gamestate.activeboard = 11;
+        gamestate
+    }
 }
 
 pub fn make_model_state<B: Backend>(state:GameState,device: &B::Device) -> Tensor<B,2> {
@@ -56,7 +60,7 @@ pub fn bot_turn(
 
     let mut new = gamestate.clone();
     if gamestate.activeboard > 8 {
-        if gamestate.activeboard == 11{
+        if gamestate.activeboard == 10{
             new.turn = true;
         }
         new.activeboard = max_idx;

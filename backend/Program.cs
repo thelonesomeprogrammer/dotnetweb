@@ -1,14 +1,15 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Net.WebSockets;
 using System.Security.Claims;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme);
-builder.Services.AddAuthorizationBuilder();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
+builder.Services.AddAuthorization();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<DbContext>(options =>
@@ -38,28 +39,28 @@ app.Use(async (context, next) =>
     if (context.Request.Path == "/sock/kryds")
     {
         var user = context.User;
-        if (context.WebSockets.IsWebSocketRequest && (user?.Identity?.IsAuthenticated ?? false))
+        if (context.WebSockets.IsWebSocketRequest && user != null && user.Identity != null && user.Identity.IsAuthenticated)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
             var buffer = new byte[1024];
             var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             var code = buffer[0..8];
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (code[0..1].ToString() == "c:"){
+            if (code[0..1].ToString() == "c:" && userId != null){
               var join = code[2..8];
               var p1 = new Player(userId,webSocket,join);
               if (codes.Exists(x => x.kode == p1.kode)){
-                Player p2 = codes.Find(x => x.kode == p1.kode);
-                codes.Remove(p2);
-                var game = new Game(p1,p2);
-                game.loop();
+                Player? p2 = codes.Find(x => x.kode == p1.kode);
+                if (p2 != null){
+                  codes.Remove(p2);
+                  var game = new Game(p1,p2);
+                  game.loop();
+                }
               } else {
                 codes.Add(p1);
               }
             }
-        }
-        else
-        {
+        } else {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
     }
@@ -77,7 +78,6 @@ class User : IdentityUser{}
 
 class DbContext : IdentityDbContext<User> {
   public DbContext(DbContextOptions<DbContext> options) : base(options){}
-  public DbSet<Game>? Games { get; set; }
 }
 
 class Game
