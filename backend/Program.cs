@@ -84,8 +84,9 @@ class Game
 {
   string id { get; set; }
   string turn { get; set; }
-  int[,] state { get; set; }
+  byte[,] state { get; set; }
   int actviebord { get; set; }
+  bool game_over { get; set; }
   Player p1 { get; set; }
   Player p2 { get; set; }
 
@@ -94,30 +95,72 @@ class Game
     p1 = P1;
     p2 = P2;
     turn = P1.userid;
-    int[,] a = {{0,0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0,0},
-                {0,0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0,0},
-                {0,0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0}};
+    byte[,] a = {{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},
+                {0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},
+                {0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},
+                                    {0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0}};
     state = a;
     actviebord = 10;
   }
 
   public void loop(){
+    var buffer = new byte[1024];
+    while (!game_over) {
+      p1.loop();
+      p2.loop();
+      if (p1.recv(buffer)){
+        var cmd = buffer[0..1].ToString();
+        if (cmd == "p:"){
+          buffer[0] = (byte)'a';
+          p1.send(buffer);
+        } else if (cmd == "m:") {
+          move(p1,(int)buffer[2]);
+          buffer[0] = (byte)'s';
+          p2.send(buffer);
+        } else if (cmd == "u:") {
+          buffer[0] = (byte)'b';
+          Array.Copy(state, 0, buffer, 2, state.Length);
+          p2.send(buffer);
+        }
 
+      }
+      if (p2.recv(buffer)){
+        var cmd = buffer[0..1].ToString();
+        if (cmd == "p:"){
+          buffer[0] = (byte)'a';
+          p2.send(buffer);
+        } else if (cmd == "m:") {
+          move(p2,(int)buffer[2]);
+          buffer[0] = (byte)'s';
+          p1.send(buffer);
+        } else if (cmd == "u:") {
+          buffer[0] = (byte)'b';
+          Array.Copy(state, 0, buffer, 2, state.Length);
+          p1.send(buffer);
+        }
+      }
+    }
   }
 
-  void move(string player, int move) {
-    if (player != turn)
+  void move(Player player, int move) {
+    if (player.userid != turn)
       return;
     if (actviebord < 9)
-      state[actviebord,move] = (player == p1.userid) ? 1 : 2;
+      state[actviebord,move] = (byte)((player.userid == p1.userid) ? 1 : 2);
     else
       actviebord = move;
     turn = (turn == p1.userid) ? p2.userid : p1.userid;
   }
 }
 
+
 class Player {
+  byte[] next_msg {get; set; }
+  byte[] current_msg {get; set; }
+  byte[] recv_msg {get; set; }
+  byte[] ref_msg { get; }
+  Task? sendtask { get; set; }
+  Task? recvtask { get; set; }
   public string userid {get; set;}
   WebSocket socket {get; set;}
   public byte[] kode {get; set;}
@@ -126,6 +169,38 @@ class Player {
     userid = newuserid;
     socket = websocket;
     kode = join;
+    next_msg = new byte[1024];
+    recv_msg = new byte[1024];
+    ref_msg = new byte[1024];
+    current_msg = new byte[1024];
+  }
+
+  public bool send(byte[] buffer) {
+    if (next_msg == ref_msg) {
+      next_msg = buffer;
+      return true;
+    }
+    return false;
+  }
+
+  public bool recv(byte[] buffer) {
+    if (recv_msg != ref_msg) {
+      buffer = recv_msg;
+      recv_msg = ref_msg;
+      return true;
+    }
+    return false;
+  }
+
+  public void loop() {
+    if (sendtask != null && sendtask.IsCompleted && next_msg != ref_msg) {
+      current_msg = next_msg;
+      next_msg = ref_msg;
+      sendtask = socket.SendAsync(new ArraySegment<byte>(current_msg), WebSocketMessageType.Binary,true, CancellationToken.None);
+    }
+    if (recvtask != null && recvtask.IsCompleted && recv_msg != ref_msg) {
+      recvtask = socket.ReceiveAsync(new ArraySegment<byte>(recv_msg), CancellationToken.None);
+    }
   }
 }
 
