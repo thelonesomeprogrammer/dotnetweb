@@ -3,24 +3,26 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Net.WebSockets;
+using System.Text;
 using System.Security.Claims;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
-builder.Services.AddAuthorization();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<DbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+builder.Services.AddAuthentication().AddCookie("Identity.Bearer");
+builder.Services.AddAuthorization();
 
 builder.Services.AddIdentityCore<User>().AddEntityFrameworkStores<DbContext>().AddApiEndpoints();
 
 
 var WebSocketOptions = new WebSocketOptions
 {
-  KeepAliveInterval = TimeSpan.FromMinutes(2)
+  KeepAliveInterval = TimeSpan.FromMinutes(6)
 };
 
 List<Player> codes = [];
@@ -29,27 +31,26 @@ var app = builder.Build();
 
 app.MapIdentityApi<User>();
 app.UseStaticFiles();
-app.UseAuthorization();
+app.UseRouting();
 app.UseAuthentication();
+app.UseAuthorization();
 app.MapFallbackToFile("/index.html");
 app.UseWebSockets(WebSocketOptions);
-
-app.Use(async (context, next) =>
-{
-    if (context.Request.Path == "/sock/kryds")
-    {
+app.UseEndpoints(endpoints =>
+    endpoints.MapGet("/sock/kryds", async context => {
         var user = context.User;
-        if (context.WebSockets.IsWebSocketRequest && user != null && user.Identity != null && user.Identity.IsAuthenticated)
+        if (context.WebSockets.IsWebSocketRequest)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
             var buffer = new byte[1024];
             var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             var code = buffer[0..8];
-            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (code[0..1].ToString() == "c:" && userId != null){
-              var join = code[2..8];
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Fuck mig";
+            if (code[0] == (byte)'c' && code[1] == (byte)':'){
+              var join = Encoding.UTF8.GetString(code[2..8]);
               var p1 = new Player(userId,webSocket,join);
               if (codes.Exists(x => x.kode == p1.kode)){
+                await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary,true, CancellationToken.None);
                 Player? p2 = codes.Find(x => x.kode == p1.kode);
                 if (p2 != null){
                   codes.Remove(p2);
@@ -61,18 +62,13 @@ app.Use(async (context, next) =>
               }
             }
         } else {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         }
-    }
-    else
-    {
-        await next(context);
-    }
-
-});
+}).RequireAuthorization());
 
 app.Run();
 
+//var state = Encoding.UTF8.GetBytes(userId);
 
 class User : IdentityUser{}
 
@@ -163,9 +159,9 @@ class Player {
   Task? recvtask { get; set; }
   public string userid {get; set;}
   WebSocket socket {get; set;}
-  public byte[] kode {get; set;}
+  public string kode {get; set;}
 
-  public Player(string newuserid, WebSocket websocket, byte[] join){
+  public Player(string newuserid, WebSocket websocket, string join){
     userid = newuserid;
     socket = websocket;
     kode = join;

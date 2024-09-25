@@ -8,8 +8,8 @@ use wasm_bindgen::JsCast;
 
 #[derive(Serialize)]
 struct Regi{
-    password:String,
     email:String,
+    password:String,
 }
 
 
@@ -23,7 +23,7 @@ pub fn main() -> Html {
         let password = form.get_element_by_id("password").unwrap_throw().dyn_into::<HtmlInputElement>().unwrap_throw().value();
         wasm_bindgen_futures::spawn_local(async move {
                     Request::post("/login")
-                        .json(&Regi{password,email})
+                        .json(&Regi{email,password,})
                         .unwrap_throw()
                         .send()
                         .await
@@ -39,13 +39,13 @@ pub fn main() -> Html {
 
     return html! {
         <Modal>
-            <form style = {form_style}>
+            <div style = {form_style}>
                 <label style = {label_style} for="email"> {"email:"} </label> <br />
                 <input style = {input_text_style} type="email" id="email" name="email" placeholder="code" value="" /> <br />
                 <label style = {label_style} for="password"> {"password:"} </label> <br />
                 <input style = {input_text_style} type="text" id="password" name="password" placeholder="code" value="" /> <br />
                 <button style = {input_submit_style} {onclick}> {"Submit"} </button>
-            </form>
+            </div>
         </Modal>
     };
 }

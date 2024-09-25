@@ -21,7 +21,7 @@ pub fn krydsbole() -> Html {
     let oponent = use_state(|| Oponent::Remote(Remote { stream:Arc::new(Mutex::new(stream)),sink:Arc::new(Mutex::new(sink)) } ) );
     let _time = use_state(|| {
         let oponent = oponent.clone();
-        Interval::new(10000, move || {
+        Interval::new(1000, move || {
             let oponent = oponent.clone();
             let oponent = (*oponent).clone();
             let oponent = match oponent{
@@ -40,6 +40,27 @@ pub fn krydsbole() -> Html {
             }
         })
     });
+
+
+    {
+        let oponent = oponent.clone();
+        let oponent = (*oponent).clone();
+        let oponent = match oponent{
+            Oponent::Remote(o) =>{
+                Some(o.clone())},
+                _=>{None}};
+        if let Some(oponent) = oponent{
+            spawn_local(async move {
+                let _ = oponent.sink.lock().await.send(Message::Text(String::from("c:iamacoolkid"))).await;
+                if let Some(Ok(msg)) = oponent.stream.lock().await.next().await{
+                    match msg {
+                        Message::Text(msg) =>{web_sys::console::log_1(&msg.into());},
+                        Message::Bytes(msg) =>{web_sys::console::log_1(&msg.into());}, 
+                    }
+                }
+            });
+        }
+    }
 
     let class = match check_win(gamestate.mainboard[9]){
         0 => "n",
