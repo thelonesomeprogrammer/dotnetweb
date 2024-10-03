@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Net.WebSockets;
 using System.Text;
 using System.Security.Claims;
+using System.Collections.Concurrent;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +26,7 @@ var WebSocketOptions = new WebSocketOptions
 };
 
 List<Player> codes = [];
+ConcurrentDictionary<string,Game> games = new ConcurrentDictionary<string,Game>(10, 10);
 
 var app = builder.Build();
 
@@ -42,23 +43,108 @@ app.UseEndpoints(endpoints =>
         if (context.WebSockets.IsWebSocketRequest)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            var buffer = new byte[1024];
+            var buffer = new byte[128];
             var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             var code = buffer[0..8];
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Fuck mig";
             if (code[0] == (byte)'c' && code[1] == (byte)':'){
               var join = Encoding.UTF8.GetString(code[2..8]);
-              var p1 = new Player(userId,webSocket,join);
+              var p1 = new Player(userId,join);
               if (codes.Exists(x => x.kode == p1.kode)){
-                await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary,true, CancellationToken.None);
                 Player? p2 = codes.Find(x => x.kode == p1.kode);
                 if (p2 != null){
                   codes.Remove(p2);
-                  var game = new Game(p1,p2);
-                  game.loop();
+                  var game = new Game(p2.userid,p1.userid);
+                  await webSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("p2")), WebSocketMessageType.Binary,true, CancellationToken.None);
+                  await webSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(game.id)), WebSocketMessageType.Binary,true, CancellationToken.None);
+                  games[p2.userid] = game;
+                  await Task.Delay(TimeSpan.FromMilliseconds(100));
+                  while (true){
+                    await Task.Delay(TimeSpan.FromMilliseconds(100));
+                    buffer = new byte[128];
+
+                    if (game.p2_msg != null){
+                      Console.WriteLine("p2_msg:" + game.p2_msg);
+                      p1.send(Encoding.UTF8.GetBytes("c:"+game.p2_msg));
+                      game.p2_msg = null;
+                      await p1.loop(webSocket);
+                    }
+
+                    if (p1.recv(buffer)){
+                      var cmd = Encoding.UTF8.GetString(buffer[0..2]);
+                      if (cmd == "p:"){
+                        p1.send(Encoding.UTF8.GetBytes("a:p"));
+                      } else if (cmd == "m:") {
+                        var cmp = game;
+                        var mov =(int)buffer[2]; 
+                        game.move(p1.userid,mov);
+                        games.TryUpdate(p2.userid,game,cmp);
+                        p1.send(Encoding.UTF8.GetBytes("a:m"));
+                      } else if (cmd == "u:") {
+                        Array.Copy(Encoding.UTF8.GetBytes("b:"),0,buffer,0,2);
+                        Array.Copy(game.state,0,buffer,2,90);
+                        p1.send(buffer);
+                      }
+                    }
+                    await p1.loop(webSocket);
+                    if (!p1.online){
+                      Game? gameer;
+                      games.TryRemove(p2.userid,out gameer);
+                      return;
+                    }
+                    if (!p2.online){
+                      Game? gameer;
+                      games.TryRemove(p2.userid,out gameer);
+                      return;
+                    }
+                  }
                 }
               } else {
                 codes.Add(p1);
+                await Task.Delay(TimeSpan.FromMilliseconds(200));
+                while (true){
+                  await Task.Delay(TimeSpan.FromMilliseconds(100));
+                  await p1.loop(webSocket);
+                  if (!p1.online){
+                    codes.Remove(p1);
+                    return;
+                  }
+                  if (games.ContainsKey(p1.userid)){
+                    await webSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("p1")), WebSocketMessageType.Binary,true, CancellationToken.None);
+                    var game = games[p1.userid];
+                    await webSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(game.id)), WebSocketMessageType.Binary,true, CancellationToken.None);
+                    while (true){
+                      buffer = new byte[128];
+                      await Task.Delay(TimeSpan.FromMilliseconds(1000));
+                      if (game.p1_msg != null){
+                        Console.WriteLine("p1_msg:" + game.p1_msg);
+                        p1.send(Encoding.UTF8.GetBytes("c:"+game.p1_msg));
+                        game.p1_msg = null;
+                        await p1.loop(webSocket);
+                      }
+                      if (p1.recv(buffer)){
+                        var cmd = Encoding.UTF8.GetString(buffer[0..2]);
+                        if (cmd == "p:"){
+                          p1.send(Encoding.UTF8.GetBytes("a:p"));
+                        } else if (cmd == "m:") {
+                          var cmp = game;
+                          var mov =(int)buffer[2]; 
+                          game.move(p1.userid,mov);
+                          games.TryUpdate(p1.userid,game,cmp);
+                          p1.send(Encoding.UTF8.GetBytes("a:m"));
+                        } else if (cmd == "u:") {
+                          Array.Copy(Encoding.UTF8.GetBytes("b:"),0,buffer,0,2);
+                          Array.Copy(game.state,0,buffer,2,90);
+                          p1.send(buffer);
+                        }
+                      }
+                      await p1.loop(webSocket);
+                      if (!p1.online){
+                        return;
+                      }
+                    }
+                  }
+                }
               }
             }
         } else {
@@ -78,74 +164,43 @@ class DbContext : IdentityDbContext<User> {
 
 class Game
 {
-  string id { get; set; }
-  string turn { get; set; }
-  byte[,] state { get; set; }
-  int actviebord { get; set; }
-  bool game_over { get; set; }
-  Player p1 { get; set; }
-  Player p2 { get; set; }
+  public string id { get; set; }
+  public string turn { get; set; }
+  public byte[] state { get; set; }
+  public int actviebord { get; set; }
+  public bool game_over { get; set; }
+  public string p1 { get; set; }
+  public string p2 { get; set; }
+  public string? p1_msg {get; set;}
+  public string? p2_msg {get; set;}
 
-  public Game(Player P1, Player P2) {
+  public Game(string P1, string P2) {
     id = Guid.NewGuid().ToString();
     p1 = P1;
     p2 = P2;
-    turn = P1.userid;
-    byte[,] a = {{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},
-                {0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},
-                {0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},{0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0},
-                                    {0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0}};
+    turn = P1;
+    byte[] a = {0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,
+                0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,
+                0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,
+                                    0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0,0b0};
     state = a;
     actviebord = 10;
   }
 
-  public void loop(){
-    var buffer = new byte[1024];
-    while (!game_over) {
-      p1.loop();
-      p2.loop();
-      if (p1.recv(buffer)){
-        var cmd = buffer[0..1].ToString();
-        if (cmd == "p:"){
-          buffer[0] = (byte)'a';
-          p1.send(buffer);
-        } else if (cmd == "m:") {
-          move(p1,(int)buffer[2]);
-          buffer[0] = (byte)'s';
-          p2.send(buffer);
-        } else if (cmd == "u:") {
-          buffer[0] = (byte)'b';
-          Array.Copy(state, 0, buffer, 2, state.Length);
-          p2.send(buffer);
-        }
-
-      }
-      if (p2.recv(buffer)){
-        var cmd = buffer[0..1].ToString();
-        if (cmd == "p:"){
-          buffer[0] = (byte)'a';
-          p2.send(buffer);
-        } else if (cmd == "m:") {
-          move(p2,(int)buffer[2]);
-          buffer[0] = (byte)'s';
-          p1.send(buffer);
-        } else if (cmd == "u:") {
-          buffer[0] = (byte)'b';
-          Array.Copy(state, 0, buffer, 2, state.Length);
-          p1.send(buffer);
-        }
-      }
-    }
-  }
-
-  void move(Player player, int move) {
-    if (player.userid != turn)
+  public void move(string player, int move) {
+    Console.WriteLine("mov:"+move);
+    if (player != turn)
       return;
     if (actviebord < 9)
-      state[actviebord,move] = (byte)((player.userid == p1.userid) ? 1 : 2);
+      state[actviebord*9+move] = (byte)((player == p1) ? 1 : 2);
     else
       actviebord = move;
-    turn = (turn == p1.userid) ? p2.userid : p1.userid;
+    turn = (turn == p1) ? p2 : p1;
+    if (player == p1){
+      p2_msg = move.ToString();
+    } else if (player == p2){
+      p1_msg = move.ToString();
+    }
   }
 }
 
@@ -155,47 +210,81 @@ class Player {
   byte[] current_msg {get; set; }
   byte[] recv_msg {get; set; }
   byte[] ref_msg { get; }
-  Task? sendtask { get; set; }
-  Task? recvtask { get; set; }
+  public bool new_msg {get; set;}
+  public bool new_send {get; set;}
+  private readonly object _sendlock = new object();
+  private readonly object _recvlock = new object();
   public string userid {get; set;}
-  WebSocket socket {get; set;}
   public string kode {get; set;}
+  public bool online {get; set;}
 
-  public Player(string newuserid, WebSocket websocket, string join){
+  public Player(string newuserid, string join){
+    online = true;
     userid = newuserid;
-    socket = websocket;
     kode = join;
-    next_msg = new byte[1024];
-    recv_msg = new byte[1024];
-    ref_msg = new byte[1024];
-    current_msg = new byte[1024];
+    next_msg = new byte[128];
+    recv_msg = new byte[128];
+    ref_msg = new byte[128];
+    current_msg = new byte[128];
   }
 
   public bool send(byte[] buffer) {
-    if (next_msg == ref_msg) {
-      next_msg = buffer;
+    lock (_sendlock){
+    if (!new_send) {
+      Array.Copy(buffer,0,next_msg,0,buffer.Length);
+      new_send = true;
       return true;
+    }
     }
     return false;
   }
 
   public bool recv(byte[] buffer) {
-    if (recv_msg != ref_msg) {
-      buffer = recv_msg;
-      recv_msg = ref_msg;
+    lock (_recvlock){
+    if (new_msg) {
+      Array.Copy(recv_msg,0,buffer,0,recv_msg.Length);
+      Array.Copy(ref_msg,0,recv_msg,0,recv_msg.Length);
+      new_msg = false;
       return true;
+    }
     }
     return false;
   }
 
-  public void loop() {
-    if (sendtask != null && sendtask.IsCompleted && next_msg != ref_msg) {
-      current_msg = next_msg;
-      next_msg = ref_msg;
-      sendtask = socket.SendAsync(new ArraySegment<byte>(current_msg), WebSocketMessageType.Binary,true, CancellationToken.None);
+  public async Task loop(WebSocket socket) {
+    switch (socket.State) {
+      case WebSocketState.CloseReceived:
+      case WebSocketState.Closed:
+      case WebSocketState.Aborted:
+      case WebSocketState.CloseSent:
+      case WebSocketState.None:
+        online = false;
+        break;
+      case WebSocketState.Connecting:
+        await Task.Delay(TimeSpan.FromMilliseconds(1000));
+        break;
+      case WebSocketState.Open:
+        break;
     }
-    if (recvtask != null && recvtask.IsCompleted && recv_msg != ref_msg) {
-      recvtask = socket.ReceiveAsync(new ArraySegment<byte>(recv_msg), CancellationToken.None);
+    if (online == false){return;};
+
+    Task? sendtask = null;
+    lock (_sendlock){
+    if (new_send) {
+      Array.Copy(next_msg,0,current_msg,0,recv_msg.Length);
+      Array.Copy(ref_msg,0,next_msg,0,recv_msg.Length);
+      sendtask = Task.Run(() => socket.SendAsync(new ArraySegment<byte>(current_msg), WebSocketMessageType.Binary,true, CancellationToken.None));
+    }
+    }
+    if (!new_msg) {
+      await socket.ReceiveAsync(new ArraySegment<byte>(recv_msg), CancellationToken.None);
+      new_msg = true;
+    }
+    if (sendtask != null){
+      await sendtask;
+      lock (_sendlock){
+        new_send = false;
+      }
     }
   }
 }

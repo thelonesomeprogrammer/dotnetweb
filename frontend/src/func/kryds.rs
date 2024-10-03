@@ -2,15 +2,51 @@ use burn::{
     prelude::{Backend,Tensor,},
     backend::NdArray,
 };
-use crate::model::Model;
+use wasm_bindgen_futures::spawn_local;
+use wasm_bindgen::UnwrapThrowExt;
+use crate::{model::Model, pages::kryds::Oponent};
 use crate::pages::kryds::{GameState,Remote};
+use gloo::net::websocket::Message;
 
 impl Remote {
-    pub fn play(&mut self, gamestate:GameState) -> GameState {
-        let mut gamestate = gamestate.clone();
-        gamestate.activeboard = 11;
-        gamestate
+    pub async fn play(&mut self,mov:u8) {
+        *self.msg.lock().unwrap_throw() = Some(Message::Bytes([109,58,mov].to_vec()));
     }
+}
+
+pub fn play(gamestate:GameState,action:usize,oponent:Oponent) -> GameState {
+    let mut new = gamestate.clone();
+    if action > 10{return new}
+
+    let old_active = new.activeboard;
+    if new.mainboard[9][action] > 0 {
+        new.activeboard = 9;
+    } else {
+        if old_active % 11 == 9{
+            new.turn = !new.turn;
+        }
+        new.activeboard = action;
+    }
+    if old_active % 11 < 9 {
+        let shape = if gamestate.turn {1} else {2};
+        new.mainboard[old_active%11][action] = shape;
+        if check_win(new.mainboard[old_active%11]) == shape {
+            new.mainboard[9][old_active%11] = shape;
+            if action == old_active%11{
+                new.activeboard = 9
+            }
+        } else if !new.mainboard[old_active].contains(&0){
+            new.mainboard[9][old_active%11] = 3;
+        }
+    }
+    new.turn = !new.turn;
+    if !new.turn {
+        match oponent {
+            Oponent::Model(model) => bot_turn(&model,new).unwrap_throw(),
+            Oponent::Local => new,
+            Oponent::Remote(mut remote) => {spawn_local(async move {remote.play(action as u8).await}); new.activeboard += 11;new},
+        }
+    }else{new}
 }
 
 pub fn make_model_state<B: Backend>(state:GameState,device: &B::Device) -> Tensor<B,2> {
@@ -83,7 +119,6 @@ pub fn bot_turn(
     }
     Ok(new)
 }
-
 
 pub fn check_win(input:[u8;9]) -> u8{
     let mut check:[u8;9] = [0;9];

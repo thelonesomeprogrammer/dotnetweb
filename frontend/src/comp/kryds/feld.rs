@@ -1,7 +1,6 @@
-use wasm_bindgen::UnwrapThrowExt;
 use yew::{Properties,UseStateHandle,Html,html,Callback,function_component,classes};
 use crate::pages::kryds::{GameState,Oponent};
-use crate::func::kryds::{bot_turn,check_win};
+use crate::func::kryds::play;
 
 
 #[derive(PartialEq, Properties)]
@@ -26,24 +25,7 @@ pub fn feld(props: &FeldProps) -> Html {
 
         Callback::from( move |_| {
             if gamestate.mainboard[boardid][feldid] == 0 && active {
-                let mut new = (*gamestate).clone();
-                if new.mainboard[9][feldid] > 0 {
-                    new.activeboard = 9;
-                } else {
-                    new.activeboard = feldid;
-                }
-                let shape = if gamestate.turn {1} else {2};
-                new.mainboard[boardid][feldid] = shape;
-                if check_win(new.mainboard[boardid]) == shape {
-                    new.mainboard[9][boardid] = shape;
-                }
-                new.turn = !new.turn;
-                gamestate.set(new.clone());
-                match (*oponent).clone() {
-                    Oponent::Model(model) => {gamestate.set(bot_turn(&model,new).unwrap_throw())},
-                    Oponent::Local => {},
-                    Oponent::Remote(mut remote) => {gamestate.set(remote.play(new))}
-                }
+                gamestate.set(play((*gamestate).clone(),feldid,(*oponent).clone()))
             }
         })
     };

@@ -1,7 +1,6 @@
-use wasm_bindgen::UnwrapThrowExt;
 use yew::{Properties,UseStateHandle,Html,html,Callback,function_component,classes};
 use crate::pages::kryds::{GameState,Oponent};
-use crate::func::kryds::bot_turn;
+use crate::func::kryds::play;
 use crate::comp::kryds::feld::Feld;
 
 
@@ -27,21 +26,8 @@ pub fn quadrant(props: &QuadrantProps) -> Html {
         let gamestate = gamestate.clone();
         let oponent = oponent.clone();
         Callback::from( move |_| {
-            if gamestate.activeboard > 8 {
-                let mut new = (*gamestate).clone();
-                if new.activeboard == 10{
-                    new.turn = !new.turn;
-                }
-                new.activeboard = boardid;
-                gamestate.set(new.clone());
-
-                if !new.turn{
-                    match (*oponent).clone() {
-                        Oponent::Model(model) => {gamestate.set(bot_turn(&model,new).unwrap_throw())},
-                        Oponent::Local => {}
-                        Oponent::Remote(mut remote) => {gamestate.set(remote.play(new))}
-                    }
-                }   
+            if gamestate.activeboard > 8 && active {
+                gamestate.set(play((*gamestate).clone(),boardid,(*oponent).clone()))
             }
         })
     };
