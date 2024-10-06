@@ -39,17 +39,15 @@ app.MapFallbackToFile("/index.html");
 app.UseWebSockets(WebSocketOptions);
 app.UseEndpoints(endpoints =>
     endpoints.MapGet("/sock/kryds", async context => {
-        var user = context.User;
         if (context.WebSockets.IsWebSocketRequest)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
             var buffer = new byte[128];
             var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             var code = buffer[0..8];
-            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Fuck mig";
             if (code[0] == (byte)'c' && code[1] == (byte)':'){
               var join = Encoding.UTF8.GetString(code[2..8]);
-              var p1 = new Player(userId,join);
+              var p1 = new Player(join);
               if (codes.Exists(x => x.kode == p1.kode)){
                 Player? p2 = codes.Find(x => x.kode == p1.kode);
                 if (p2 != null){
@@ -150,7 +148,7 @@ app.UseEndpoints(endpoints =>
         } else {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         }
-}).RequireAuthorization());
+}));
 
 app.Run();
 
@@ -218,9 +216,9 @@ class Player {
   public string kode {get; set;}
   public bool online {get; set;}
 
-  public Player(string newuserid, string join){
+  public Player(string join){
     online = true;
-    userid = newuserid;
+    userid = Guid.NewGuid().ToString();
     kode = join;
     next_msg = new byte[128];
     recv_msg = new byte[128];
