@@ -1,26 +1,25 @@
-use std::sync::{Arc,Mutex};
-
+use std::sync::Mutex;
+use std::rc::Rc;
 use futures::StreamExt;
-use yew::{classes, function_component, html, use_effect_with, use_state, Html};
+use yew::{function_component, html, use_effect_with, use_state, Html};
 use gloo::timers::{future::TimeoutFuture,callback::Interval};
 use gloo::net::websocket::{Message,futures::WebSocket};
 use wasm_bindgen::UnwrapThrowExt;
 use wasm_bindgen_futures::spawn_local;
 use crate::func::kryds::play;
 use crate::{
-    comp::kryds::quartrant::Quadrant,
-    func::kryds::check_win,
-    pages::kryds::{GameState,Oponent,Remote},
+    comp::kryds::Game,
+    state::kryds::{GameState,Oponent,Remote},
 };
 use futures::SinkExt;
 
 
-#[function_component(Krydsbole)]
-pub fn krydsbole() -> Html {
+#[function_component(Online)]
+pub fn main() -> Html {
     let gamestate = use_state(|| GameState::new());
     let gamestate1 = gamestate.clone();
-    let suck = use_state(|| {let (sink,stream) = WebSocket::open("/sock/kryds").unwrap_throw().split();(Arc::new(futures::lock::Mutex::new(sink)),Arc::new(futures::lock::Mutex::new(stream)))});
-    let oponent = use_state(|| Oponent::Remote(Remote { msg: Arc::new(Mutex::new(Some(Message::Text(String::from("c:iamacoolkid")))))} ) );
+    let suck = use_state(|| {let (sink,stream) = WebSocket::open("/sock/kryds").unwrap_throw().split();(Rc::new(futures::lock::Mutex::new(sink)),Rc::new(futures::lock::Mutex::new(stream)))});
+    let oponent = use_state(|| Oponent::Remote(Remote { msg: Rc::new(Mutex::new(Some(Message::Text(String::from("c:iamacoolkid")))))} ) );
     let oponent1 = oponent.clone();
     let incomming = use_state(|| (1,50) );
     use_effect_with(incomming.clone(), move |inc| {gamestate1.set(play((*gamestate1).clone(), inc.1, (*oponent1).clone()));}); 
@@ -85,29 +84,5 @@ pub fn krydsbole() -> Html {
         });
 
 
-
-    let class = match check_win(gamestate.mainboard[9]){
-        0 => "n",
-        1 => "x",
-        2 => "o",
-        4 => "s",
-        _ => "",};
-
-    return html!{
-        <div class ={ classes!("game-con") }>
-            <div class = { classes!("krydsbole") }>
-                <div class = {classes!(class)}>
-                    <div class = { classes!("line", "line-l") }></div>
-                    <div class = {classes!("krydsbole_outer")}>
-                        {{
-                            (0..=8).map( move |boardid|{
-                                html!{<Quadrant gamestate={gamestate.clone()} oponent={oponent.clone()} {boardid} />}
-                            }).collect::<Html>()
-                        }}
-                    </div>
-                    <div class = { classes!("line", "line-r") }></div>
-                </div>
-            </div>
-        </div>
-    }
+    return html!{<Game gamestate = {gamestate.clone()} oponent={oponent.clone()}/>}
 }

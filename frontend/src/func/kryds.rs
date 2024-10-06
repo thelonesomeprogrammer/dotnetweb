@@ -1,11 +1,12 @@
 use burn::{
-    prelude::{Backend,Tensor,},
-    backend::NdArray,
+    backend::NdArray, prelude::{Backend,Tensor}, tensor::cast::ToElement
 };
 use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::UnwrapThrowExt;
-use crate::{model::Model, pages::kryds::Oponent};
-use crate::pages::kryds::{GameState,Remote};
+use crate::{
+    state::kryds::{GameState,Remote,Oponent},
+    model::Model 
+};
 use gloo::net::websocket::Message;
 
 impl Remote {
@@ -17,7 +18,7 @@ impl Remote {
 pub fn play(gamestate:GameState,action:usize,oponent:Oponent) -> GameState {
     let mut new = gamestate.clone();
     if action > 10{return new}
-
+    new.log.push((new.turn,action.to_u8()));
     let old_active = new.activeboard;
     if new.mainboard[9][action] > 0 {
         new.activeboard = 9;

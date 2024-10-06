@@ -3,7 +3,7 @@ use burn::{
     prelude::{Backend, Module, Tensor}, 
     backend::NdArray,
 };
-use crate::pages::kryds::GameState;
+use crate::state::kryds::GameState;
 
 pub type B = NdArray<f32>;
 

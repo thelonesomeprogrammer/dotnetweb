@@ -1,7 +1,7 @@
 use yew::{Properties,UseStateHandle,Html,html,Callback,function_component,classes};
-use crate::pages::kryds::{GameState,Oponent};
+use crate::state::kryds::{GameState,Oponent};
 use crate::func::kryds::play;
-use crate::comp::kryds::feld::Feld;
+use crate::comp::kryds::Feld;
 
 
 
