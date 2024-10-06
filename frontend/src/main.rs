@@ -39,8 +39,8 @@ fn main() {
 fn switch(routes: Route) -> Html {
     match routes {
         Route::Home => html! { <Home /> },
-        Route::Register=> html! { <Login /> },
-        Route::Login => html! { <Register /> },
+        Route::Register=> html! { <Register /> },
+        Route::Login => html! { <Login /> },
         Route::Krydsbole => html! { <Menu /> },
         Route::Local => html! { <Local /> },
         Route::Online => html! { <Online /> },
@@ -65,6 +65,8 @@ fn nav() -> Html {
         <nav class={classes!("navbar")}>
             <ul class={classes!("navbar-menu")}>
                 <li class={classes!("navbar-item")}><Link<Route> to={Route::Home}>{ "Hjem" }</Link<Route>></li>
+                <li class={classes!("navbar-item")}><Link<Route> to={Route::Login}>{ "Login" }</Link<Route>></li>
+                <li class={classes!("navbar-item")}><Link<Route> to={Route::Register}>{ "Register" }</Link<Route>></li>
                 <li class={classes!("navbar-item")}><Link<Route> to={Route::Krydsbole}>{ "super kryds og bole" }</Link<Route>></li>
             </ul>
         </nav>

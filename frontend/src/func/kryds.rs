@@ -35,7 +35,7 @@ pub fn play(gamestate:GameState,action:usize,oponent:Oponent) -> GameState {
             if action == old_active%11{
                 new.activeboard = 9
             }
-        } else if !new.mainboard[old_active].contains(&0){
+        } else if !new.mainboard[old_active%11].contains(&0){
             new.mainboard[9][old_active%11] = 3;
         }
     }

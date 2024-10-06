@@ -1,11 +1,23 @@
-<!DOCTYPE html><html><head>
-<link rel="preload" href="/trunk-template-e92f41ce4f454355_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="/trunk-template-e92f41ce4f454355.js"></head><body>in
-
-  
-    <meta charset="utf-8">
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
     <title>Trunk Template</title>
-    <link rel="stylesheet" href="/index-c65df7e7d912c3a5.css">
+    <link rel="stylesheet" href="/index-eae62df10ddb8f52.css" integrity="sha384&#x2D;bbHc2ZaV97Oa7U0qFD3O&#x2B;G41ZmTew7JXT3uyrVVixmixmgJmHtCwd1nfUKBSvVSj"/>
   
+<link rel="modulepreload" href="/trunk-template-c4b3aea482cbd2e9.js" crossorigin=anonymous integrity="sha384-iWlzvBm5AhvOm7M6YLy0Ak5AvmQDOXZxzgshk67uHSu9uTgLgSmdZhKRa4I5V503">
+<link rel="preload" href="/trunk-template-c4b3aea482cbd2e9_bg.wasm" crossorigin=anonymous integrity="sha384-f07V4rZED1rTKJEwX1geUpNeGcrqsuNK0cwCMJqYS/k4S0wgCEf5wqP28G9aZq2W" as="fetch" type="application/wasm"></head>
+  <body>
+  
+<script type="module" nonce="a1S5dc747oY+cKE7uqWaWg==">
+import init, * as bindings from '/trunk-template-c4b3aea482cbd2e9.js';
+const wasm = await init('/trunk-template-c4b3aea482cbd2e9_bg.wasm');
 
-<script type="module">import init from '/trunk-template-e92f41ce4f454355.js';init('/trunk-template-e92f41ce4f454355_bg.wasm');</script></body></html>
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script></body>
+</html>
