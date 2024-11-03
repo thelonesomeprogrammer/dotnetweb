@@ -42,8 +42,8 @@ pub fn play(gamestate:GameState,action:usize,oponent:Oponent) -> GameState {
     }
     new.turn = !new.turn;
     if !new.turn {
-        match oponent {
-            Oponent::Model(model) => bot_turn(&model,new,oponent).unwrap_throw(),
+        match oponent.clone() {
+            Oponent::Model(model) => play(new.clone(),bot_turn(&model,new).unwrap_throw(),oponent),
             Oponent::Local => new,
             Oponent::Remote(mut remote) => {spawn_local(async move {remote.play(action as u8).await}); new.activeboard += 11;new},
         }
@@ -85,8 +85,7 @@ pub fn horyble_conv(input:usize) -> f32{
 
 pub fn bot_turn(
     model:&Model<NdArray>,
-    gamestate:GameState,
-    oponent:Oponent) -> Result<GameState,burn::tensor::DataError> {
+    gamestate:GameState) -> Result<usize,burn::tensor::DataError> {
     let gamestate = gamestate.clone();
     let device = model.device();
     let input = make_model_state(gamestate.clone(),&device);
@@ -96,7 +95,7 @@ pub fn bot_turn(
         .fold((0, action_vec[0]), |(idx_max, val_max), (idx, val)| {
             if &val_max > val {(idx_max, val_max)} else {(idx, *val)}});
 
-    Ok(play(new,max_idx,oponent))
+    Ok(max_idx)
 }
 
 pub fn check_win(input:[u8;9]) -> u8{
