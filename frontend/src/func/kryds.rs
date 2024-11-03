@@ -43,7 +43,7 @@ pub fn play(gamestate:GameState,action:usize,oponent:Oponent) -> GameState {
     new.turn = !new.turn;
     if !new.turn {
         match oponent {
-            Oponent::Model(model) => bot_turn(&model,new).unwrap_throw(),
+            Oponent::Model(model) => bot_turn(&model,new,oponent).unwrap_throw(),
             Oponent::Local => new,
             Oponent::Remote(mut remote) => {spawn_local(async move {remote.play(action as u8).await}); new.activeboard += 11;new},
         }
@@ -85,7 +85,8 @@ pub fn horyble_conv(input:usize) -> f32{
 
 pub fn bot_turn(
     model:&Model<NdArray>,
-    gamestate:GameState) -> Result<GameState,burn::tensor::DataError> {
+    gamestate:GameState,
+    oponent:Oponent) -> Result<GameState,burn::tensor::DataError> {
     let gamestate = gamestate.clone();
     let device = model.device();
     let input = make_model_state(gamestate.clone(),&device);
@@ -95,30 +96,7 @@ pub fn bot_turn(
         .fold((0, action_vec[0]), |(idx_max, val_max), (idx, val)| {
             if &val_max > val {(idx_max, val_max)} else {(idx, *val)}});
 
-    let mut new = gamestate.clone();
-    if gamestate.activeboard > 8 {
-        if gamestate.activeboard == 10{
-            new.turn = true;
-        }
-        new.activeboard = max_idx;
-    }
-    let boardid = gamestate.activeboard;
-    let feldid = max_idx;
-    if boardid > 9{return Ok(new)}
-    if gamestate.mainboard[boardid][feldid] == 0{
-        if new.mainboard[9][feldid] > 0 {
-            new.activeboard = 9;
-        } else {
-            new.activeboard = feldid;
-        }
-        let shape = if gamestate.turn {1} else {2};
-        new.mainboard[boardid][feldid] = shape;
-        if check_win(new.mainboard[0]) == shape {
-            new.mainboard[9][boardid] = shape;
-        }
-        new.turn = true;
-    }
-    Ok(new)
+    Ok(play(new,max_idx,oponent))
 }
 
 pub fn check_win(input:[u8;9]) -> u8{
